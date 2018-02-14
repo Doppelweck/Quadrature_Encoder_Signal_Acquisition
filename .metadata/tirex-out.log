@@ -1,0 +1,12 @@
+-----TI-REX started at Fri Jan 19 2018 14:50:19 GMT+0100 (CET)
+Fri, 19 Jan 2018 13:50:20 GMT connect deprecated methodOverride: use method-override npm module instead at app.js:488:21
+    "family": "IPv4",
+        "mac": "3c:15:c2:e3:f6:9a",
+        "internal": false
+    }
+]
+removing old log file tirex-2018-01-10.log
+removing old log file tirex-2018-01-12.log
+-----TI-REX started at Fri Jan 19 2018 14:50:19 GMT+0100 (CET)
+TIREX server listening on port 55432
+About to exit with code:  0

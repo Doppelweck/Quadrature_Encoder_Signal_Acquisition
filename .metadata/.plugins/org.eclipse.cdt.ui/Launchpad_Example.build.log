@@ -1,0 +1,18 @@
+
+**** Build of configuration Debug for project Launchpad_Example ****
+
+/Applications/ti/ccsv7/utils/bin/gmake -k all 
+Building file: ../main.c
+Invoking: ARM Compiler
+"/Applications/ti/ccsv7/tools/compiler/ti-cgt-arm_17.9.0.STS/bin/armcl" -mv7M4 --code_state=16 --float_support=FPv4SPD16 -me --include_path="/Applications/ti/ccsv7/tools/compiler/ti-cgt-arm_17.9.0.STS/include" --include_path="/Users/sebastianfriedrich/ti/tirtos_tivac_2_16_00_08/products/TivaWare_C_Series-2.1.1.71b" --define=ccs="ccs" --define=PART_TM4C123GH6PM -g --gcc --diag_warning=225 --diag_wrap=off --display_error_number --abi=eabi --preproc_with_compile --preproc_dependency="main.d_raw" --cmd_file="configPkg/compiler.opt" "../main.c"
+"../main.c", line 294: warning #515-D: a value of type "uint16_t *" cannot be assigned to an entity of type "uint8_t *"
+Finished building: ../main.c
+ 
+Building target: Launchpad_Example.out
+Invoking: ARM Linker
+"/Applications/ti/ccsv7/tools/compiler/ti-cgt-arm_17.9.0.STS/bin/armcl" -mv7M4 --code_state=16 --float_support=FPv4SPD16 -me --define=ccs="ccs" --define=PART_TM4C123GH6PM -g --gcc --diag_warning=225 --diag_wrap=off --display_error_number --abi=eabi -z -m"Launchpad_Example.map" --heap_size=0 --stack_size=512 -i"/Applications/ti/ccsv7/tools/compiler/ti-cgt-arm_17.9.0.STS/lib" -i"/Applications/ti/ccsv7/tools/compiler/ti-cgt-arm_17.9.0.STS/include" --reread_libs --diag_wrap=off --display_error_number --warn_sections --xml_link_info="Launchpad_Example_linkInfo.xml" --rom_model -o "Launchpad_Example.out" "./main.obj" "../tm4c123gh6pm.cmd" -l"configPkg/linker.cmd" -llibc.a -l"/Users/sebastianfriedrich/ti/tirtos_tivac_2_16_00_08/products/TivaWare_C_Series-2.1.1.71b/driverlib/ccs/Debug/driverlib.lib" 
+<Linking>
+Finished building target: Launchpad_Example.out
+ 
+
+**** Build Finished ****

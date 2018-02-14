@@ -1,0 +1,60 @@
+VERSION ""
+
+
+NS_ : 
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_:
+
+
+BO_ 3221225472 VECTOR__INDEPENDENT_SIG_MSG: 0 Vector__XXX
+ SG_ LR_WSpeed : 0|16@0+ (0.01,-100) [0|2000] "kmph" Vector__XXX
+ SG_ RR_WSpeed : 0|16@0+ (0.01,-100) [0|2000] "kmph" Vector__XXX
+ SG_ RF_WSpeed : 0|16@0+ (0.01,-100) [0|2000] "kmph" Vector__XXX
+ SG_ LF_WSpeed : 0|16@0+ (0.01,-100) [0|2000] "kmph" Vector__XXX
+
+BO_ 1201 WheelSpeeds: 8 Vector__XXX
+ SG_ RR_WSpeed : 55|16@0+ (0.01,-100) [0|2000] "kmph" Vector__XXX
+ SG_ RF_WSpeed : 23|16@0+ (0.01,-100) [0|2000] "kmph" Vector__XXX
+ SG_ LR_WSpeed : 39|16@0+ (0.01,-100) [0|2000] "kmph" Vector__XXX
+ SG_ LF_WSpeed : 7|16@0+ (0.01,-100) [0|2000] "kmph" Vector__XXX
+
+BO_ 513 VehicleData: 8 Vector__XXX
+ SG_ Engine_Speed : 7|16@0+ (0.2632,0) [0|8000] "" Vector__XXX
+ SG_ Accel_Pos : 48|8@1+ (0.5,0) [0|100] "%" Vector__XXX
+
+
+
+CM_ BO_ 3221225472 "This is a message for not used signals, created by Vector CANdb++ DBC OLE DB Provider.";
+BA_DEF_  "BusType" STRING ;
+BA_DEF_DEF_  "BusType" "";
+

@@ -1,0 +1,27 @@
+################################################################################
+# Automatically-generated file. Do not edit!
+################################################################################
+
+# Each subdirectory must supply rules for building sources it contributes
+build-769148993:
+	@$(MAKE) --no-print-directory -Onone -f subdir_rules.mk build-769148993-inproc
+
+build-769148993-inproc: ../Launchpad_Example.cfg
+	@echo 'Building file: "$<"'
+	@echo 'Invoking: XDCtools'
+	"/opt/ccstudio/xdctools_3_50_04_43_core/xs" --xdcpath="/home/iffer/ti/tirtos_tivac_2_16_00_08/packages;/home/iffer/ti/tirtos_tivac_2_16_00_08/products/tidrivers_tivac_2_16_00_08/packages;/home/iffer/ti/tirtos_tivac_2_16_00_08/products/bios_6_45_01_29/packages;/home/iffer/ti/tirtos_tivac_2_16_00_08/products/ndk_2_25_00_09/packages;/home/iffer/ti/tirtos_tivac_2_16_00_08/products/uia_2_00_05_50/packages;/home/iffer/ti/tirtos_tivac_2_16_00_08/products/ns_1_11_00_10/packages;/opt/ccstudio/ccsv7/ccs_base;" xdc.tools.configuro -o configPkg -t ti.targets.arm.elf.M4F -p ti.platforms.tiva:TM4C123GE6PM -r debug -c "/opt/ccstudio/ccsv7/tools/compiler/ti-cgt-arm_16.9.6.LTS" "$<"
+	@echo 'Finished building: "$<"'
+	@echo ' '
+
+configPkg/linker.cmd: build-769148993 ../Launchpad_Example.cfg
+configPkg/compiler.opt: build-769148993
+configPkg/: build-769148993
+
+main.obj: ../main.c $(GEN_OPTS) | $(GEN_HDRS)
+	@echo 'Building file: "$<"'
+	@echo 'Invoking: ARM Compiler'
+	"/opt/ccstudio/ccsv7/tools/compiler/ti-cgt-arm_16.9.6.LTS/bin/armcl" -mv7M4 --code_state=16 --float_support=FPv4SPD16 -me -O2 --include_path="/opt/ccstudio/ccsv7/tools/compiler/ti-cgt-arm_16.9.6.LTS/include" --define=ccs="ccs" --define=PART_TM4C123GH6PM --gcc --diag_warning=225 --diag_wrap=off --display_error_number --abi=eabi --preproc_with_compile --preproc_dependency="main.d_raw" $(GEN_OPTS__FLAG) "$(shell echo $<)"
+	@echo 'Finished building: "$<"'
+	@echo ' '
+
+

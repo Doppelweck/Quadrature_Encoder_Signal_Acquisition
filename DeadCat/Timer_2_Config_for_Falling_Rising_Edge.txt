@@ -1,0 +1,49 @@
+// Inititalisieren des Timers1 zur Zeitmessung [TimerA: PIN PB4]
+void Init_Timer2(void){
+
+    printf("Initializing Timer2...");
+
+    printf("done 0.\n");
+
+    // Aktivierung des Timer 2
+        SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
+            // Wait until it is ready...
+            while (! SysCtlPeripheralReady(SYSCTL_PERIPH_TIMER2));
+
+    // deactivate Timer1
+    TimerDisable(TIMER2_BASE, TIMER_BOTH);
+
+    // configure Timer1: Split Timer1 -> Set TimerA to half-width edge time capture
+    // Count-Down-Timer
+    TimerConfigure(TIMER2_BASE, (TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_CAP_TIME));
+
+
+    // Set Control-Event of TimerA to both edges
+    TimerControlEvent(TIMER2_BASE, TIMER_A, TIMER_EVENT_BOTH_EDGES);  // (Beide Flanken erkennen: TIMER_EVENT_BOTH_EDGES)
+
+
+    // Set TimerA on high value
+    TimerLoadSet(TIMER2_BASE, TIMER_A, 0xFFFF);
+
+    // Set Timer-Clock-Soure to System-Clock
+    TimerClockSourceSet(TIMER2_BASE, TIMER_CLOCK_SYSTEM);
+
+    //Enable Timer2A
+    TimerEnable(TIMER2_BASE, (TIMER_A));
+
+    // Aktivierung des Ports B und Konfiguration des Timer-PIN
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+            // Wait until it is ready...
+            while (! SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOF));
+        // Set the GPIO directions for the respective pins.
+    GPIOPinTypeTimer(GPIO_PORTF_BASE, GPIO_PIN_4); // Festlegung des Timer-CCP-Pins
+    GPIOPinConfigure(GPIO_PF4_T2CCP0);             // Configurierung des T1CCP0-Pins (PB4)
+    GPIOIntTypeSet(GPIO_PORTF_BASE, GPIO_PIN_4, GPIO_BOTH_EDGES);
+    GPIOIntEnable(GPIO_PORTF_BASE, GPIO_INT_PIN_4);
+    GPIOIntClear(GPIO_PORTF_BASE, GPIO_INT_PIN_4);
+
+    
+
+    printf("done.\n");
+    return;
+}
