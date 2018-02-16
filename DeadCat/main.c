@@ -67,14 +67,44 @@ int32_t pui32TxBuffer[2];
 #define PPI  180 // Pulses per Inch
 #define PPR  5000 // Pulses per Revolutions
 #define EPI  4 //Edges per inch. Both Signals
-#define MIN_QEI_VALUE 566
+#define MIN_QEI_VALUE 50//283//566
+
+
+double dblVelocityPeriod = 1.0;
+/* Multiplier for QEIPos to um
+ * MM_PER_INCH      25.4 mm/Inch
+ * -------------- = ---------------- = 35.2777 um/Edge
+ * EDGES_PER_INCH   4*180 Edges/Inch
+ */
+double dblMultiplierPos = (double)25400/(EPI*PPI);
+/* Multiplier for QEIVel to 1um/s:
+ *
+ * MM_PER_INCH           25.4 mm/Inch             25400 mm/s    35.277... mm/s   35,277.7... um/s
+ * ------------------- = ---------------------- = ----------- = -------------- = ----------------
+ * dt * EDGES_PER_INCH   1ms * 4*180 Edges/Inch   4*180 Edges   Edges            Edges
+ */
+double dblMultiplierVelQEI = (double)25400/(EPI*PPI)*1000;
+/* Multiplier for QEIAngle to mdeg
+ * 360,000 mdeg/revolution   360,000 mdeg/rev
+ * ----------------------- = ---------------- = 18 mdeg/Edge
+ * EDGES_PER_REV             4*5000 Edges/rev
+ */
+#define MILLI_DEG_PER_EDGE 18
+/* Multiplier QEIVel to 0.001 deg/s
+ * 360 deg/Revolution   360 deg/rev              90 deg/s      18 deg/s   18000 mdeg/s
+ * ------------------ = ---------------------- = ----------- = -------- = ------------
+ * dt * EDGES_PER_REV   1ms * 4*5000 Edges/rev   5 Edges       Edges      Edges
+ */
+double dblMultiplierOmegaQEI = (double)18000;
+#define MILLI_DEG_PER_SEC_PER_EDGE 18000
+
 
 double Velocity = 0;
 double Position = 0; //Position in mm
 double Angle = 0;
 double AngleSpeed = 0;
 uint32_t MeasureVelocityPeriod = 5; // Specifies the number of clock ticks over which to measure the velocity.
-double dblVelocityPeriod = 1.0;
+
 
 
 
@@ -117,6 +147,7 @@ void Init_UART(void);
 void ISR_GPIOD(void);
 void ISR_WTIMER3(void);
 void ISR_WTIMER2(void);
+void SWI_clock1(void);
 /*
  * ======== main ========
  */
@@ -214,7 +245,7 @@ void Task_1ms(void)
     else
     {
         GPIOIntDisable(GPIO_PORTD_BASE, GPIO_PIN_6);
-        Velocity = ((double)QEIPosVelocity)*QEIPosDirection*25.4/(PPI*dblVelocityPeriod*EPI)*1000;
+        Velocity = ((double)QEIPosVelocity)*QEIPosDirection*dblMultiplierVelQEI;
         //Velocity = TmrPosDeltaTemp;
         //TmrAngFlag  =3;
     }
@@ -233,7 +264,7 @@ void Task_1ms(void)
     else
     {
         GPIOIntDisable(GPIO_PORTC_BASE, GPIO_PIN_5);
-        AngleSpeed = QEIAngDirection*360*0.5*((double)QEIAngVelocity)/(dblVelocityPeriod*5);
+        AngleSpeed = QEIAngDirection*((double)QEIAngVelocity)*dblMultiplierOmegaQEI;
         //AngleSpeed = QEIPosVelocity;
 
     }
@@ -510,34 +541,55 @@ void Init_WTIMER3(void){
     printf("done.\n");
 }
 
+
+// Init velocity timer
 void Init_WTIMER2(void){
     printf("Initializing Wide Timer4...");
 
-    // Enable timer3
+    // Enable timer2
     SysCtlPeripheralEnable(SYSCTL_PERIPH_WTIMER2);
     while (! SysCtlPeripheralReady(SYSCTL_PERIPH_WTIMER2));
 
 
-    TimerDisable(WTIMER2_BASE,TIMER_A);
+
+
+    TimerDisable(WTIMER2_BASE,TIMER_BOTH);
     //Stop timer
     TimerClockSourceSet(WTIMER2_BASE, TIMER_CLOCK_SYSTEM);
-    TimerConfigure(WTIMER2_BASE, ( TIMER_CFG_A_CAP_TIME));  //Full-width periodic timer that counts down.
+    TimerConfigure(WTIMER2_BASE, (TIMER_CFG_A_CAP_TIME ));  //Full-width periodic timer that counts down.
+    //TimerConfigure(WTIMER2_BASE, (  TIMER_CFG_B_CAP_TIME ));
+    //TimerConfigure(WTIMER2_BASE,TIMER_CFG_SPLIT_PAIR);
+    //TimerConfigure(WTIMER2_BASE, ( TIMER_CFG_B_CAP_TIME  ));  //Half-width periodic timer that counts down.
+    //TimerConfigure(WTIMER2_BASE, ( TIMER_CFG_B_CAP_TIME ));  //Half-width periodic timer that counts down.
+    // Set timer event:
+    TimerControlEvent(WTIMER2_BASE,TIMER_A,TIMER_EVENT_POS_EDGE);
+    //TimerControlEvent(WTIMER2_BASE,TIMER_B,TIMER_EVENT_POS_EDGE);
+    //TimerDMAEventSet(WTIMER2_BASE,TIMER_DMA_CAPEVENT_A);
+
+    // Egal:
     TimerLoadSet(WTIMER2_BASE, TIMER_A, 0xFFFFFFFF);      //Max value 9999999
+    // For debugging:
     TimerControlStall(WTIMER2_BASE, TIMER_A, 0);
-    TimerEnable(WTIMER2_BASE, TIMER_A);
-    TimerIntDisable(WTIMER2_BASE,(TIMER_CAPA_EVENT | TIMER_TIMA_DMA | TIMER_TIMA_TIMEOUT));
-    TimerIntClear(WTIMER2_BASE,(TIMER_CAPA_EVENT | TIMER_TIMA_DMA | TIMER_TIMA_TIMEOUT));
+    //
+
 
     // Enable T3CCP(0/1)
-
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
-            while (! SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOD));
-        GPIOPinTypeTimer(GPIO_PORTD_BASE, (GPIO_PIN_0 | GPIO_PIN_1));
-        GPIOPinConfigure(GPIO_PD0_WT2CCP0);
-        GPIOPinConfigure(GPIO_PD1_WT2CCP1);
+         while (! SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOD));
+    GPIOPinTypeTimer(GPIO_PORTD_BASE, (GPIO_PIN_0 | GPIO_PIN_1));
+    GPIOPinConfigure(GPIO_PD0_WT2CCP0);
+    GPIOPinConfigure(GPIO_PD1_WT2CCP1);
 
+    TimerIntDisable(WTIMER2_BASE,(TIMER_CAPA_EVENT | TIMER_TIMA_DMA | TIMER_TIMA_TIMEOUT));
+    TimerIntClear(WTIMER2_BASE,(TIMER_CAPA_EVENT | TIMER_TIMA_DMA | TIMER_TIMA_TIMEOUT));
+    // Enable
+    //SysCtlIntEnable(INT_WTIMER2A);
+    TimerIntEnable(WTIMER2_BASE, (TIMER_CAPA_EVENT ));
+    //TimerIntClear(WTIMER2_BASE, (TIMER_CAPA_EVENT | TIMER_CAPB_EVENT));
+    //IntEnable(INT_WTIMER2A);
 
-        //TimerIntEnable(WTIMER2_BASE, TIMER_CAPA_EVENT);
+    TimerEnable(WTIMER2_BASE, (TIMER_A));
+
     printf("done.\n");
 }
 
@@ -583,7 +635,7 @@ void ISR_QEI0(void){
     QEIIntClear(QEI0_BASE,(QEI_INTTIMER));
 //    if(QEIIntStatus(QEI0_BASE,TRUE)==QEI_INTTIMER)
 //        {
-
+    System_printf("qei0");
 
 }
 
@@ -628,16 +680,28 @@ void ISR_GPIOD(void){
 //    delta = delta + (timerOLD - timerNEW);
     TmrPosDelta = (TmrPosOld - TmrPosNew);
     //deltaBuff[Buff_counter] = (double)delta*2000.0/SysCtlClockGet();
-    //Buff_counter = (Buff_counter + 1)%100;
+    //Buff_counter = (Buff_counter + 1)%4;
+    //if(Buff_counter == 0)
+    //    GPIOIntDisable(GPIO_PORTD_BASE, GPIO_PIN_6);
     TmrPosOld = TmrPosNew;
 
 }
 
 void ISR_WTIMER2(void){
- TimerIntClear(WTIMER2_BASE, TIMER_A);
+ //TimerIntClear(WTIMER2_BASE, TIMER_A);
+ TimerIntClear(WTIMER2_BASE,(TIMER_CAPA_EVENT | TIMER_TIMA_DMA | TIMER_TIMA_TIMEOUT | TIMER_CAPB_EVENT));
+System_printf("WTimer2_ISR\n");
 
 }
 void ISR_WTIMER3(void){
- TimerIntClear(WTIMER3_BASE, TIMER_A);
-
+ //TimerIntClear(WTIMER3_BASE, TIMER_A);
+ TimerIntClear(WTIMER3_BASE,(TIMER_CAPA_EVENT | TIMER_TIMA_DMA | TIMER_TIMA_TIMEOUT));
 }
+
+// Task 1000ms
+void SWI_clock1(void){
+    //uint32_t TmrPosNew = TimerValueGet(WTIMER2_BASE, TIMER_A);
+    //System_printf("%u", );
+ System_printf("SWI_clock1: %u %u \n",TimerValueGet(WTIMER2_BASE, TIMER_A), TimerValueGet(WTIMER2_BASE, TIMER_B));
+}
+
