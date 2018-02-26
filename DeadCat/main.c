@@ -230,12 +230,14 @@ void Task_1ms(void)
     Position = ((double)QEIPosPosition)*25.4/PPI/EPI;    // in mm
     //Velocity = ((double)QEIVelocityGet(QEI0_BASE))*QEIDirectionGet(QEI0_BASE)*2.54/PPI/dblVelocityPeriod/EPI;
 
-    if((MIN_QEI_VALUE)>=QEIPosVelocity)
+    //if((MIN_QEI_VALUE)>=QEIPosVelocity)
+    if(1)
     {
         GPIOIntEnable(GPIO_PORTD_BASE, GPIO_PIN_6);
 
-            Velocity = (double)2*0.5*25.4/(PPI)*SysCtlClockGet()*QEIPosDirection/((double)TmrPosDeltaTemp)*1000;
-
+            //Velocity = (double)2*0.5*25.4/(PPI)*SysCtlClockGet()*QEIPosDirection/((double)TmrPosDeltaTemp)*1000;
+        // For debugging:
+        Velocity = (double)SysCtlClockGet()*QEIPosDirection/((double)TmrPosDeltaTemp)*1000;
                 if(QEIPosVelocity==0)
                     ui32PosUpdateFlag = 0x0010;
 
@@ -253,7 +255,8 @@ void Task_1ms(void)
     Angle = ((double)QEIAngPosition)/20*360;
 
 
-    if(MIN_QEI_VALUE>=QEIAngVelocity)
+    //if(MIN_QEI_VALUE>=QEIAngVelocity)
+    if(0)
     {
         GPIOIntEnable(GPIO_PORTC_BASE, GPIO_PIN_5);
         AngleSpeed = (double)QEIAngDirection*2*0.5*360*SysCtlClockGet()/(TmrAngDeltaTemp*5);
@@ -264,8 +267,9 @@ void Task_1ms(void)
     else
     {
         GPIOIntDisable(GPIO_PORTC_BASE, GPIO_PIN_5);
-        AngleSpeed = QEIAngDirection*((double)QEIAngVelocity)*dblMultiplierOmegaQEI;
-        //AngleSpeed = QEIPosVelocity;
+        //AngleSpeed = QEIAngDirection*((double)QEIAngVelocity)*dblMultiplierOmegaQEI;
+        // For debugging:
+        AngleSpeed = (double)QEIAngDirection*QEIPosVelocity*250000;
 
     }
 
