@@ -451,7 +451,7 @@ void Init_QEI(void)
 
     //Clear all QEI Interrupt sources
     QEIIntClear(QEI0_BASE, (QEI_INTERROR | QEI_INTDIR | QEI_INTTIMER | QEI_INTINDEX));
-    QEIIntDisable(QEI0_BASE,(QEI_INTTIMER));
+    QEIIntEnable(QEI0_BASE,(QEI_INTTIMER));
 
     printf("done.\n");
 
@@ -488,7 +488,8 @@ void Init_QEI(void)
 
     //Clear all QEI Interrupt sources
     QEIIntClear(QEI1_BASE, (QEI_INTERROR | QEI_INTDIR | QEI_INTTIMER | QEI_INTINDEX));
-
+    QEIIntEnable(QEI1_BASE,(QEI_INTTIMER));
+    
     printf("done.\n");
 
     return;
@@ -639,18 +640,105 @@ void ISR_QEI0(void){
     QEIIntClear(QEI0_BASE,(QEI_INTTIMER));
 //    if(QEIIntStatus(QEI0_BASE,TRUE)==QEI_INTTIMER)
 //        {
-    System_printf("qei0");
+    int32_t QEIPosPosition, QEIPosVelocity, QEIPosDirection;
+    int32_t TmrPosDeltaTemp;
+        uint32_t ui32PosUpdateFlag = 0;
+
+
+        QEIPosPosition = QEIPositionGet(QEI0_BASE);
+        QEIPosVelocity = QEIVelocityGet(QEI0_BASE);
+        QEIPosDirection = QEIDirectionGet(QEI0_BASE);
+        TmrPosDeltaTemp = TmrPosDelta;
+
+
+        Position = ((double)QEIPosPosition)*25.4/PPI/EPI;    // in mm
+        //if((MIN_QEI_VALUE)>=QEIPosVelocity)
+        if(1)
+        {
+            GPIOIntEnable(GPIO_PORTD_BASE, GPIO_PIN_6);
+
+                //Velocity = (double)2*0.5*25.4/(PPI)*SysCtlClockGet()*QEIPosDirection/((double)TmrPosDeltaTemp)*1000;
+            // For debugging:
+            Velocity = (double)SysCtlClockGet()*QEIPosDirection/((double)TmrPosDeltaTemp)*1000;
+                    if(QEIPosVelocity==0)
+                        ui32PosUpdateFlag = 0x0010;
+
+                //Velocity = TmrPosDeltaTemp;
+            //TmrAngFlag  =1;
+        }
+        else
+        {
+            GPIOIntDisable(GPIO_PORTD_BASE, GPIO_PIN_6);
+            Velocity = ((double)QEIPosVelocity)*QEIPosDirection*dblMultiplierVelQEI;
+            //Velocity = TmrPosDeltaTemp;
+            //TmrAngFlag  =3;
+        }
+
+// Send a CAN message with the current state placed in the least significant byte.
+
+        pui32TxBuffer[0] = (int32_t)Position;
+        pui32TxBuffer[1] = (int32_t)Velocity;
+        //pui8TxBuffer[2] = (int16_t)TmrPosDeltaTemp;
+        //pui8TxBuffer[3] = (int16_t)QEIPosVelocity;
+        MsgObjectTx.ui32MsgID = 0x0001 | ui32PosUpdateFlag;         // Message ID is '1'.
+        //MsgObjectTx.ui32MsgID = 0x0001 ;         // Message ID is '1'.
+
+        CANMessageSet(CAN0_BASE, 1, &MsgObjectTx, MSG_OBJ_TYPE_TX);
+
+
+
+//    System_printf("qei0");
 
 }
 
 void ISR_QEI1(void){
     QEIIntClear(QEI1_BASE,(QEI_INTTIMER));
-//    if(QEIIntStatus(QEI0_BASE,TRUE)==QEI_INTTIMER)
-//        {
 
-//        }
-//    else
-//        System_printf("Other Interrupt\n");
+        int32_t QEIAngPosition, QEIAngVelocity, QEIAngDirection;
+        uint32_t TmrAngDeltaTemp, TmrPosDeltaTemp;
+        uint32_t ui32AngUpdateFlag = 0;
+
+
+        QEIAngPosition = QEIPositionGet(QEI1_BASE);
+        QEIAngVelocity = QEIVelocityGet(QEI1_BASE);
+        QEIAngDirection = QEIDirectionGet(QEI1_BASE);
+        TmrAngDeltaTemp = TmrAngDelta;
+
+
+        Angle = ((double)QEIAngPosition)/20*360;
+
+
+        //if(MIN_QEI_VALUE>=QEIAngVelocity)
+        if(0)
+        {
+            GPIOIntEnable(GPIO_PORTC_BASE, GPIO_PIN_5);
+            AngleSpeed = (double)QEIAngDirection*2*0.5*360*SysCtlClockGet()/(TmrAngDeltaTemp*5);
+            if(QEIAngVelocity==0)
+                ui32AngUpdateFlag = 0x0010;
+            //AngleSpeed  =QEIPosVelocity;
+        }
+        else
+        {
+            GPIOIntDisable(GPIO_PORTC_BASE, GPIO_PIN_5);
+            //AngleSpeed = QEIAngDirection*((double)QEIAngVelocity)*dblMultiplierOmegaQEI;
+            // For debugging:
+            AngleSpeed = (double)QEIAngDirection*QEIAngVelocity*250000;
+
+        }
+
+        // Send a CAN message with the current state placed in the least significant byte.
+
+
+        pui32TxBuffer[0] = (int32_t)Angle;
+        pui32TxBuffer[1] = (int32_t)AngleSpeed;
+        //pui8TxBuffer[2] = (int16_t)TmrAngDeltaTemp;
+        //pui8TxBuffer[3] = (int16_t)QEIAngVelocity;
+        MsgObjectTx.ui32MsgID = 0x0002 | ui32AngUpdateFlag;         // Message ID is '2'.
+        //MsgObjectTx.ui32MsgID = 0x0002 ;         // Message ID is '2'.
+
+        CANMessageSet(CAN0_BASE, 1, &MsgObjectTx, MSG_OBJ_TYPE_TX);
+
+
 
 
 }
