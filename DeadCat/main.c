@@ -67,7 +67,7 @@ int32_t pui32TxBuffer[2];
 #define PPI  180 // Pulses per Inch
 #define PPR  5000 // Pulses per Revolutions
 #define EPI  4 //Edges per inch. Both Signals
-#define MIN_QEI_VALUE 50//283//566
+#define MIN_QEI_VALUE 44//283//566
 
 
 double dblVelocityPeriod = 1.0;
@@ -264,7 +264,7 @@ void Task_1ms(void)
     else
     {
         GPIOIntDisable(GPIO_PORTC_BASE, GPIO_PIN_5);
-        AngleSpeed = QEIAngDirection*((double)QEIAngVelocity)*dblMultiplierOmegaQEI;
+        AngleSpeed = ((double)QEIAngVelocity)*QEIAngDirection*dblMultiplierOmegaQEI;
         //AngleSpeed = QEIPosVelocity;
 
     }
