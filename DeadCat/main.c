@@ -66,48 +66,67 @@ int32_t pui32TxBuffer[2];
 
 #define PPI  180 // Pulses per Inch
 #define PPR  5000 // Pulses per Revolutions
-#define EPI  4 //Edges per inch. Both Signals
+#define EPP  4 //Edges per period. Both Signals
 #define MIN_QEI_VALUE 44//283//566
 
 
-double dblVelocityPeriod = 1.0;
+double dblVelocityPeriod = 0.001;      // 1ms
 /* Multiplier for QEIPos to um
  * MM_PER_INCH      25.4 mm/Inch
  * -------------- = ---------------- = 35.2777 um/Edge
  * EDGES_PER_INCH   4*180 Edges/Inch
  */
-double dblMultiplierPos = (double)25400/(EPI*PPI);
+double dblMultiplierPos = (double)25400/(EPP*PPI);
 /* Multiplier for QEIVel to 1um/s:
  *
  * MM_PER_INCH           25.4 mm/Inch             25400 mm/s    35.277... mm/s   35,277.7... um/s
  * ------------------- = ---------------------- = ----------- = -------------- = ----------------
  * dt * EDGES_PER_INCH   1ms * 4*180 Edges/Inch   4*180 Edges   Edges            Edges
  */
-double dblMultiplierVelQEI = (double)25400/(EPI*PPI)*1000;
+double dblMultiplierVelQEI = (double)25400/(EPP*PPI)*1000;
+/* Multiplier for timer based velocity
+ *                            F_CLK * dblMultiplierPos   dblMultiplierVelTimer
+ * v = f * dblMultiplierPos = ------------------------ = ---------------------
+ *                                 Timer_period               Timer_period
+ *
+ * dblMultiplierVelTimer = F_CLK * dblMultiplierPos
+ */
+double dblMultiplierVelTimer;
+
 /* Multiplier for QEIAngle to mdeg
  * 360,000 mdeg/revolution   360,000 mdeg/rev
  * ----------------------- = ---------------- = 18 mdeg/Edge
  * EDGES_PER_REV             4*5000 Edges/rev
  */
-#define MILLI_DEG_PER_EDGE 18
-/* Multiplier QEIVel to 0.001 deg/s
+double dblMultiplierAngle = 18.0;
+/* Multiplier QEIAngleVelocity to 0.001 deg/s
  * 360 deg/Revolution   360 deg/rev              90 deg/s      18 deg/s   18000 mdeg/s
  * ------------------ = ---------------------- = ----------- = -------- = ------------
  * dt * EDGES_PER_REV   1ms * 4*5000 Edges/rev   5 Edges       Edges      Edges
  */
 double dblMultiplierOmegaQEI = (double)18000;
 #define MILLI_DEG_PER_SEC_PER_EDGE 18000
+/* Multiplier for timer based angular velocity (omega)
+ *                                   F_CLK * dblMultiplierAngle   dblMultiplierOmegaTimer
+ * omega = f * dblMultiplierAngle = -------------------------- = -----------------------
+ *                                        Timer_period                  Timer_period
+ *
+ * dblMultiplierOmegaTimer = F_CLK * dblMultiplierAngle
+ */
+double dblMultiplierOmegaTimer;
+
+/*
+ * Define measured values as global variables
+ */
+double Velocity = 0;    // [um/s]
+double Position = 0;    // [um]
+double Angle = 0;       // [milli degree]
+double AngleSpeed = 0;  // [milli degree/s]
 
 
-double Velocity = 0;
-double Position = 0; //Position in mm
-double Angle = 0;
-double AngleSpeed = 0;
-uint32_t MeasureVelocityPeriod = 5; // Specifies the number of clock ticks over which to measure the velocity.
 
 
-
-
+/* Global timer measurement variables */
 uint32_t TmrPosOld =0;
 uint32_t TmrPosNew =0;
 uint32_t TmrPosDelta = 0;
@@ -118,36 +137,21 @@ uint32_t TmrAngNew =0;
 uint32_t TmrAngDelta = 0;
 int8_t TmrAngFlag = 0;
 
-uint8_t edge_detected = 0;
-
-
-double deltaBuff[100];
-uint32_t Buff_counter = 0;
-double systemCLk =0;
-
-//Stores the pulse length
-volatile uint32_t pulse=0;
-
-
-//int v = 0.0;
-
 
 /* Function prototypes */
 void Init_Clock(void);
 void Init_GPIO(void);
 void Init_CAN(void);
 void Init_QEI(void);
-void Init_TIMER(void);
 void Init_WTIMER3(void);
 void Init_WTIMER2(void);
-void Init_TIMER2(void);
-void inputInt(void);
 void Init_UART(void);
 
+void ISR_GPIOC(void);
 void ISR_GPIOD(void);
 void ISR_WTIMER3(void);
 void ISR_WTIMER2(void);
-void SWI_clock1(void);
+
 /*
  * ======== main ========
  */
@@ -185,22 +189,13 @@ void main(void)
 // This is the background task.
 void Task_Idle(void)
 {
-
-
-
-    // Code here ...
-
-    //
-    //System_printf("Angle: %f deg  Omega: %f deg/s  RPM: %f rpm\n",Angle, AngleSpeed,AngleSpeed/6);
-    //
-
     //Required for using System_printf() command within interrupt routines.
     System_flush();
     return;
 }
 
-// This is a repetitive task that is executed every 100 ms.
-// Timing can be modified in the .CFG file.
+// This is a repetitive task that is executed every 1 ms.
+// Timing can be modified in the .CFG file (TI-RTOS).
 void Task_1ms(void)
 {
     int32_t QEIPosPosition, QEIPosVelocity, QEIPosDirection;
@@ -221,51 +216,43 @@ void Task_1ms(void)
     TmrAngDeltaTemp = TmrAngDelta;
 
 
+    Position = ((double)QEIPosPosition)*dblMultiplierPos;    // in mm
 
 
-//    System_printf("Angle: %f deg   Omega: %f deg/s   RPM: %f rpm\n",Angle, AngleSpeed,AngleSpeed/6);
-    edge_detected = 0;
-    //delta = 0;
-
-    Position = ((double)QEIPosPosition)*25.4/PPI/EPI;    // in mm
-    //Velocity = ((double)QEIVelocityGet(QEI0_BASE))*QEIDirectionGet(QEI0_BASE)*2.54/PPI/dblVelocityPeriod/EPI;
-
-    if((MIN_QEI_VALUE)>=QEIPosVelocity)
-    {
+    //if((MIN_QEI_VALUE)>=QEIPosVelocity)
+    if(1)
+    {   // Use timer value
         GPIOIntEnable(GPIO_PORTD_BASE, GPIO_PIN_6);
 
-            Velocity = (double)2*0.5*25.4/(PPI)*SysCtlClockGet()*QEIPosDirection/((double)TmrPosDeltaTemp)*1000;
+            //Velocity = (double)dblMultiplierVelTimer*QEIPosDirection/((double)TmrPosDeltaTemp)*1000;
+            // for debugging
+        Velocity = (double)SysCtlClockGet()*QEIPosDirection/((double)TmrPosDeltaTemp)*1e3;
 
                 if(QEIPosVelocity==0)
                     ui32PosUpdateFlag = 0x0010;
-
-            //Velocity = TmrPosDeltaTemp;
-        //TmrAngFlag  =1;
     }
     else
-    {
+    {   // use QEI value
         GPIOIntDisable(GPIO_PORTD_BASE, GPIO_PIN_6);
         Velocity = ((double)QEIPosVelocity)*QEIPosDirection*dblMultiplierVelQEI;
-        //Velocity = TmrPosDeltaTemp;
-        //TmrAngFlag  =3;
     }
 
-    Angle = ((double)QEIAngPosition)/20*360;
+    Angle = ((double)QEIAngPosition)*dblMultiplierAngle;
 
 
-    if(MIN_QEI_VALUE>=QEIAngVelocity)
-    {
+    //if(MIN_QEI_VALUE>=QEIAngVelocity)
+    if(0)
+    {   // Use timer value
         GPIOIntEnable(GPIO_PORTC_BASE, GPIO_PIN_6);
-        AngleSpeed = (double)QEIAngDirection*2*0.5*360*SysCtlClockGet()/(TmrAngDeltaTemp*5);
+        AngleSpeed = (double)QEIAngDirection*dblMultiplierOmegaTimer/(TmrAngDeltaTemp);
         if(QEIAngVelocity==0)
             ui32AngUpdateFlag = 0x0010;
-        //AngleSpeed  =QEIPosVelocity;
     }
     else
-    {
+    {   // use QEI value
         GPIOIntDisable(GPIO_PORTC_BASE, GPIO_PIN_6);
-        AngleSpeed = ((double)QEIAngVelocity)*QEIAngDirection*dblMultiplierOmegaQEI;
-        //AngleSpeed = QEIPosVelocity;
+        //AngleSpeed = ((double)QEIAngVelocity)*QEIAngDirection*dblMultiplierOmegaQEI;
+        AngleSpeed = (double)QEIPosVelocity*250e3;
 
     }
 
@@ -273,26 +260,16 @@ void Task_1ms(void)
 
     pui32TxBuffer[0] = (int32_t)Position;
     pui32TxBuffer[1] = (int32_t)Velocity;
-    //pui8TxBuffer[2] = (int16_t)TmrPosDeltaTemp;
-    //pui8TxBuffer[3] = (int16_t)QEIPosVelocity;
     MsgObjectTx.ui32MsgID = 0x0001 | ui32PosUpdateFlag;         // Message ID is '1'.
-    //MsgObjectTx.ui32MsgID = 0x0001 ;         // Message ID is '1'.
 
     CANMessageSet(CAN0_BASE, 1, &MsgObjectTx, MSG_OBJ_TYPE_TX);
 
     pui32TxBuffer[0] = (int32_t)Angle;
     pui32TxBuffer[1] = (int32_t)AngleSpeed;
-    //pui8TxBuffer[2] = (int16_t)TmrAngDeltaTemp;
-    //pui8TxBuffer[3] = (int16_t)QEIAngVelocity;
     MsgObjectTx.ui32MsgID = 0x0002 | ui32AngUpdateFlag;         // Message ID is '2'.
-    //MsgObjectTx.ui32MsgID = 0x0002 ;         // Message ID is '2'.
 
     CANMessageSet(CAN0_BASE, 1, &MsgObjectTx, MSG_OBJ_TYPE_TX);
 
-
-
-
-    //TimerEnable(TIMER3_BASE,TIMER_A);
 }
 
 /*
@@ -304,8 +281,9 @@ void Init_Clock(void)
 {
     // Settings for 80 MHz.
     SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
-    systemCLk =1.0/((double)SysCtlClockGet());
-    System_printf("SystemClock: %d\n",systemCLk);
+    dblMultiplierVelTimer = SysCtlClockGet()*dblMultiplierPos;
+    dblMultiplierOmegaTimer = SysCtlClockGet()*dblMultiplierAngle;
+    System_printf("SystemClock: %d\n",SysCtlClockGet());
     return;
 }
 
@@ -330,21 +308,21 @@ void Init_GPIO(void)
 
 // Enable GPIOC interrupt
     GPIOPinTypeGPIOInput(GPIO_PORTC_BASE, GPIO_PIN_6);
-    GPIOIntDisable(GPIO_PORTC_BASE, GPIO_PIN_6);
+    //GPIOIntDisable(GPIO_PORTC_BASE, GPIO_PIN_6);
     GPIOIntClear(GPIO_PORTC_BASE, GPIO_INT_PIN_5);
     //GPIOIntTypeSet(GPIO_PORTC_BASE, GPIO_PIN_6,GPIO_BOTH_EDGES);
     GPIOIntTypeSet(GPIO_PORTC_BASE, GPIO_PIN_6,GPIO_RISING_EDGE);
-    GPIOIntEnable(GPIO_PORTC_BASE, GPIO_PIN_6);
+    //GPIOIntEnable(GPIO_PORTC_BASE, GPIO_PIN_6);
 
     // Enable GPIOD interrupt (position)
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
         while (! SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOD));
     GPIOPinTypeGPIOInput(GPIO_PORTD_BASE, GPIO_PIN_6);
-    GPIOIntDisable(GPIO_PORTD_BASE, GPIO_PIN_6);
+    //GPIOIntDisable(GPIO_PORTD_BASE, GPIO_PIN_6);
     GPIOIntClear(GPIO_PORTD_BASE, GPIO_INT_PIN_6);
     //GPIOIntTypeSet(GPIO_PORTD_BASE, GPIO_PIN_6,GPIO_BOTH_EDGES);
     GPIOIntTypeSet(GPIO_PORTD_BASE, GPIO_PIN_6,GPIO_RISING_EDGE);
-    GPIOIntEnable(GPIO_PORTD_BASE, GPIO_PIN_6);
+    //GPIOIntEnable(GPIO_PORTD_BASE, GPIO_PIN_6);
 
 
 
@@ -406,17 +384,17 @@ void Init_CAN(void)
 
 void Init_QEI(void)
 {
+    uint32_t MeasureVelocityPeriod; // Specifies the number of clock ticks over which to measure the velocity.
+
     printf("Initializing QEI Module 0...");
-    //MeasureVelocityPeriod = SysCtlClockGet();
-    //dblVelocityPeriod = (double)MeasureVelocityPeriod/SysCtlClockGet();
-    dblVelocityPeriod  =0.001;
+
     MeasureVelocityPeriod = (uint32_t)(dblVelocityPeriod*SysCtlClockGet());
 
-    // Enable the peripheral.-1423603204
+    // Enable the peripheral.
     SysCtlPeripheralEnable(SYSCTL_PERIPH_QEI0);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
-    //SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);-1423603204
+
     // Wait until it is ready...
             while (! SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOF));
             while (! SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOD));
@@ -492,26 +470,6 @@ void Init_QEI(void)
 }
 
 
-void Init_TIMER(void){
-    printf("Initializing Timer...");
-
-    // Enable timer3
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER3);
-    SysCtlDelay(3);
-    TimerDisable(TIMER3_BASE,TIMER_A);
-    //Stop timer
-    TimerClockSourceSet(TIMER3_BASE, TIMER_CLOCK_SYSTEM);
-    TimerConfigure(TIMER3_BASE, TIMER_CFG_PERIODIC);  //Full-width periodic timer that counts down.
-    TimerLoadSet(TIMER3_BASE, TIMER_A, 0xFFFFFFFF);       //Max value 9999999
-    TimerControlStall(TIMER3_BASE, TIMER_A,0);
-    TimerEnable(TIMER3_BASE, TIMER_A);
-
-
-
-
-    printf("done.\n");
-}
-
 void Init_WTIMER3(void){
     printf("Initializing Wide Timer3...");
 
@@ -558,10 +516,7 @@ void Init_WTIMER2(void){
     //Stop timer
     TimerClockSourceSet(WTIMER2_BASE, TIMER_CLOCK_SYSTEM);
     TimerConfigure(WTIMER2_BASE, (TIMER_CFG_A_CAP_TIME ));  //Full-width periodic timer that counts down.
-    //TimerConfigure(WTIMER2_BASE, (  TIMER_CFG_B_CAP_TIME ));
-    //TimerConfigure(WTIMER2_BASE,TIMER_CFG_SPLIT_PAIR);
-    //TimerConfigure(WTIMER2_BASE, ( TIMER_CFG_B_CAP_TIME  ));  //Half-width periodic timer that counts down.
-    //TimerConfigure(WTIMER2_BASE, ( TIMER_CFG_B_CAP_TIME ));  //Half-width periodic timer that counts down.
+
     // Set timer event:
     TimerControlEvent(WTIMER2_BASE,TIMER_A,TIMER_EVENT_POS_EDGE);
     //TimerControlEvent(WTIMER2_BASE,TIMER_B,TIMER_EVENT_POS_EDGE);
@@ -594,76 +549,13 @@ void Init_WTIMER2(void){
     printf("done.\n");
 }
 
-void Init_TIMER2(void){
-    printf("Initializing Timer...");
-
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER3);
-    SysCtlDelay(3);
-    TimerDisable(TIMER3_BASE,TIMER_A);
-    //Stop timer
-    TimerClockSourceSet(TIMER3_BASE, TIMER_CLOCK_SYSTEM);
-    TimerConfigure(TIMER3_BASE, (TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_CAP_TIME));  //Full-width periodic timer that counts down.
-    TimerLoadSet(TIMER3_BASE, TIMER_A, 0xFFFFFFFF);       //Max value 9999999
-    TimerControlStall(TIMER3_BASE, TIMER_A,0);
-    TimerEnable(TIMER3_BASE, TIMER_A);
-    // Aktivierung des Ports B und Konfiguration des Timer-PIN
-        SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
-    GPIOPinTypeTimer(GPIO_PORTB_BASE, (GPIO_PIN_2 | GPIO_PIN_3)); // Festlegung des Timer-CCP-Pins
-        GPIOPinConfigure(GPIO_PB2_T3CCP0);             // Configurierung des T1CCP0-Pins (PB4)
-        GPIOPinConfigure(GPIO_PB3_T3CCP1);             // Configurierung des T1CCP0-Pins (PB4)
-    printf("done.\n");
-}
-
-
-void inputInt(){
-  GPIOIntClear(GPIO_PORTA_BASE, GPIO_PIN_2); //clear interrupt flag
-  if ( GPIOPinRead(GPIO_PORTA_BASE, GPIO_PIN_2) == GPIO_PIN_2){
-    HWREG(TIMER3_BASE + TIMER_O_TAV) = 0; //Loads value 0 into the timer.
-    TimerEnable(TIMER3_BASE,TIMER_A); //start timer to recor
-
-  }
-  else{
-
-    TimerDisable(TIMER3_BASE,TIMER_A); //stop timer
-    pulse = TimerValueGet(TIMER3_BASE,TIMER_A); //record value
-
-
-  }
-
-}
-
-void ISR_QEI0(void){
-    QEIIntClear(QEI0_BASE,(QEI_INTTIMER));
-//    if(QEIIntStatus(QEI0_BASE,TRUE)==QEI_INTTIMER)
-//        {
-    System_printf("qei0");
-
-}
-
-void ISR_QEI1(void){
-    QEIIntClear(QEI1_BASE,(QEI_INTTIMER));
-//    if(QEIIntStatus(QEI0_BASE,TRUE)==QEI_INTTIMER)
-//        {
-
-//        }
-//    else
-//        System_printf("Other Interrupt\n");
-
-
-}
-
 void ISR_GPIOC(void){
     GPIOIntClear(GPIO_PORTC_BASE, GPIO_PIN_6); //clear interrupt flag
 
     TmrAngNew = TimerValueGet(WTIMER3_BASE, TIMER_A);
-    //edge_detected ++;
 
-
-    //delta = delta + (timerOLD - timerNEW)*QEIDirectionGet(QEI1_BASE);
-//    delta = delta + (timerOLD - timerNEW);
     TmrAngDelta = (TmrAngOld - TmrAngNew);
-    //deltaBuff[Buff_counter] = (double)delta*2000.0/SysCtlClockGet();
-    //Buff_counter = (Buff_counter + 1)%100;
+
     TmrAngOld = TmrAngNew;
 
 }
@@ -674,35 +566,9 @@ void ISR_GPIOD(void){
 
 
     TmrPosNew = TimerValueGet(WTIMER2_BASE, TIMER_A);
-    //edge_detected ++;
 
-
-    //delta = delta + (timerOLD - timerNEW)*QEIDirectionGet(QEI1_BASE);
-//    delta = delta + (timerOLD - timerNEW);
     TmrPosDelta = (TmrPosOld - TmrPosNew);
-    //deltaBuff[Buff_counter] = (double)delta*2000.0/SysCtlClockGet();
-    //Buff_counter = (Buff_counter + 1)%4;
-    //if(Buff_counter == 0)
-    //    GPIOIntDisable(GPIO_PORTD_BASE, GPIO_PIN_6);
+
     TmrPosOld = TmrPosNew;
 
 }
-
-void ISR_WTIMER2(void){
- //TimerIntClear(WTIMER2_BASE, TIMER_A);
- TimerIntClear(WTIMER2_BASE,(TIMER_CAPA_EVENT | TIMER_TIMA_DMA | TIMER_TIMA_TIMEOUT | TIMER_CAPB_EVENT));
-System_printf("WTimer2_ISR\n");
-
-}
-void ISR_WTIMER3(void){
- //TimerIntClear(WTIMER3_BASE, TIMER_A);
- TimerIntClear(WTIMER3_BASE,(TIMER_CAPA_EVENT | TIMER_TIMA_DMA | TIMER_TIMA_TIMEOUT));
-}
-
-// Task 1000ms
-void SWI_clock1(void){
-    //uint32_t TmrPosNew = TimerValueGet(WTIMER2_BASE, TIMER_A);
-    //System_printf("%u", );
- System_printf("SWI_clock1: %u %u \n",TimerValueGet(WTIMER2_BASE, TIMER_A), TimerValueGet(WTIMER2_BASE, TIMER_B));
-}
-
