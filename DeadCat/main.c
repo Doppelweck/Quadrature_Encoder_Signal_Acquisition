@@ -67,7 +67,7 @@ int32_t pui32TxBuffer[2];
 #define PPI  180 // Pulses per Inch
 #define PPR  5000 // Pulses per Revolutions
 #define EPP  4 //Edges per period. Both Signals
-#define MIN_QEI_VALUE 44//283//566
+#define MIN_QEI_VALUE 340//283//566
 
 
 double dblVelocityPeriod = 0.001;      // 1ms
@@ -85,11 +85,11 @@ double dblMultiplierPos = (double)25400/(EPP*PPI);
  */
 double dblMultiplierVelQEI = (double)25400/(EPP*PPI)*1000;
 /* Multiplier for timer based velocity
- *                            F_CLK * dblMultiplierPos   dblMultiplierVelTimer
- * v = f * dblMultiplierPos = ------------------------ = ---------------------
+ *                            F_CLK * dblMultiplierPos*EPP   dblMultiplierVelTimer
+ * v = f * dblMultiplierPos = ---------------------------- = ---------------------
  *                                 Timer_period               Timer_period
  *
- * dblMultiplierVelTimer = F_CLK * dblMultiplierPos
+ * dblMultiplierVelTimer = F_CLK * dblMultiplierPos * EPP
  */
 double dblMultiplierVelTimer;
 
@@ -107,11 +107,11 @@ double dblMultiplierAngle = 18.0;
 double dblMultiplierOmegaQEI = (double)18000;
 #define MILLI_DEG_PER_SEC_PER_EDGE 18000
 /* Multiplier for timer based angular velocity (omega)
- *                                   F_CLK * dblMultiplierAngle   dblMultiplierOmegaTimer
- * omega = f * dblMultiplierAngle = -------------------------- = -----------------------
+ *                                   F_CLK * dblMultiplierAngle * EPP   dblMultiplierOmegaTimer
+ * omega = f * dblMultiplierAngle = --------------------------------- = -----------------------
  *                                        Timer_period                  Timer_period
  *
- * dblMultiplierOmegaTimer = F_CLK * dblMultiplierAngle
+ * dblMultiplierOmegaTimer = F_CLK * dblMultiplierAngle * EPP
  */
 double dblMultiplierOmegaTimer;
 
@@ -223,11 +223,8 @@ void Task_1ms(void)
     {   // Use timer value
         GPIOIntEnable(GPIO_PORTD_BASE, GPIO_PIN_6);
 
-            //Velocity = (double)dblMultiplierVelTimer*QEIPosDirection/((double)TmrPosDeltaTemp)*1000;
-            // for debugging
-        Velocity = (double)SysCtlClockGet()*QEIPosDirection/((double)TmrPosDeltaTemp)*1e3;
-
-                if(QEIPosVelocity==0)
+            Velocity = (double)dblMultiplierVelTimer*QEIPosDirection/((double)TmrPosDeltaTemp);
+            if(QEIPosVelocity==0)
                     ui32PosUpdateFlag = 0x0010;
     }
     else
@@ -249,8 +246,7 @@ void Task_1ms(void)
     else
     {   // use QEI value
         GPIOIntDisable(GPIO_PORTC_BASE, GPIO_PIN_6);
-        //AngleSpeed = ((double)QEIAngVelocity)*QEIAngDirection*dblMultiplierOmegaQEI;
-        AngleSpeed = (double)QEIPosVelocity*250e3;
+        AngleSpeed = ((double)QEIAngVelocity)*QEIAngDirection*dblMultiplierOmegaQEI;
 
     }
 
@@ -279,8 +275,8 @@ void Init_Clock(void)
 {
     // Settings for 80 MHz.
     SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
-    dblMultiplierVelTimer = SysCtlClockGet()*dblMultiplierPos;
-    dblMultiplierOmegaTimer = SysCtlClockGet()*dblMultiplierAngle;
+    dblMultiplierVelTimer = SysCtlClockGet()*dblMultiplierPos*EPP;
+    dblMultiplierOmegaTimer = SysCtlClockGet()*dblMultiplierAngle*EPP;
     System_printf("SystemClock: %d\n",SysCtlClockGet());
     return;
 }
