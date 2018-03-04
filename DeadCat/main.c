@@ -219,8 +219,7 @@ void Task_1ms(void)
     Position = ((double)QEIPosPosition)*dblMultiplierPos;    // in mm
 
 
-    //if((MIN_QEI_VALUE)>=QEIPosVelocity)
-    if(1)
+    if((MIN_QEI_VALUE)>=QEIPosVelocity)
     {   // Use timer value
         GPIOIntEnable(GPIO_PORTD_BASE, GPIO_PIN_6);
 
@@ -240,8 +239,7 @@ void Task_1ms(void)
     Angle = ((double)QEIAngPosition)*dblMultiplierAngle;
 
 
-    //if(MIN_QEI_VALUE>=QEIAngVelocity)
-    if(0)
+    if(MIN_QEI_VALUE>=QEIAngVelocity)
     {   // Use timer value
         GPIOIntEnable(GPIO_PORTC_BASE, GPIO_PIN_6);
         AngleSpeed = (double)QEIAngDirection*dblMultiplierOmegaTimer/(TmrAngDeltaTemp);
