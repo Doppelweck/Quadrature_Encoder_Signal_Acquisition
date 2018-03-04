@@ -255,7 +255,7 @@ void Task_1ms(void)
 
     if(MIN_QEI_VALUE>=QEIAngVelocity)
     {
-        GPIOIntEnable(GPIO_PORTC_BASE, GPIO_PIN_5);
+        GPIOIntEnable(GPIO_PORTC_BASE, GPIO_PIN_6);
         AngleSpeed = (double)QEIAngDirection*2*0.5*360*SysCtlClockGet()/(TmrAngDeltaTemp*5);
         if(QEIAngVelocity==0)
             ui32AngUpdateFlag = 0x0010;
@@ -263,7 +263,7 @@ void Task_1ms(void)
     }
     else
     {
-        GPIOIntDisable(GPIO_PORTC_BASE, GPIO_PIN_5);
+        GPIOIntDisable(GPIO_PORTC_BASE, GPIO_PIN_6);
         AngleSpeed = ((double)QEIAngVelocity)*QEIAngDirection*dblMultiplierOmegaQEI;
         //AngleSpeed = QEIPosVelocity;
 
@@ -329,12 +329,12 @@ void Init_GPIO(void)
 
 
 // Enable GPIOC interrupt
-    GPIOPinTypeGPIOInput(GPIO_PORTC_BASE, GPIO_PIN_5);
-    GPIOIntDisable(GPIO_PORTC_BASE, GPIO_PIN_5);
+    GPIOPinTypeGPIOInput(GPIO_PORTC_BASE, GPIO_PIN_6);
+    GPIOIntDisable(GPIO_PORTC_BASE, GPIO_PIN_6);
     GPIOIntClear(GPIO_PORTC_BASE, GPIO_INT_PIN_5);
-    //GPIOIntTypeSet(GPIO_PORTC_BASE, GPIO_PIN_5,GPIO_BOTH_EDGES);
-    GPIOIntTypeSet(GPIO_PORTC_BASE, GPIO_PIN_5,GPIO_RISING_EDGE);
-    GPIOIntEnable(GPIO_PORTC_BASE, GPIO_PIN_5);
+    //GPIOIntTypeSet(GPIO_PORTC_BASE, GPIO_PIN_6,GPIO_BOTH_EDGES);
+    GPIOIntTypeSet(GPIO_PORTC_BASE, GPIO_PIN_6,GPIO_RISING_EDGE);
+    GPIOIntEnable(GPIO_PORTC_BASE, GPIO_PIN_6);
 
     // Enable GPIOD interrupt (position)
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
@@ -484,6 +484,7 @@ void Init_QEI(void)
 
     //Clear all QEI Interrupt sources
     QEIIntClear(QEI1_BASE, (QEI_INTERROR | QEI_INTDIR | QEI_INTTIMER | QEI_INTINDEX));
+    QEIIntDisable(QEI1_BASE,(QEI_INTTIMER));
 
     printf("done.\n");
 
@@ -652,7 +653,7 @@ void ISR_QEI1(void){
 }
 
 void ISR_GPIOC(void){
-    GPIOIntClear(GPIO_PORTC_BASE, GPIO_PIN_5); //clear interrupt flag
+    GPIOIntClear(GPIO_PORTC_BASE, GPIO_PIN_6); //clear interrupt flag
 
     TmrAngNew = TimerValueGet(WTIMER3_BASE, TIMER_A);
     //edge_detected ++;
