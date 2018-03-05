@@ -170,7 +170,7 @@ void main(void)
     // Initialize the Timer for period measurement.
     Init_WTIMER3();
 
-    Init_WTIMER2();
+    //Init_WTIMER2();
 
     printf("Finished.\n");
 
@@ -329,7 +329,7 @@ void Init_GPIO(void)
 
 
 // Enable GPIOC interrupt
-    GPIOPinTypeGPIOInput(GPIO_PORTC_BASE, GPIO_PIN_5);
+   /*GPIOPinTypeGPIOInput(GPIO_PORTC_BASE, GPIO_PIN_5);
     GPIOIntDisable(GPIO_PORTC_BASE, GPIO_PIN_5);
     GPIOIntClear(GPIO_PORTC_BASE, GPIO_INT_PIN_5);
     //GPIOIntTypeSet(GPIO_PORTC_BASE, GPIO_PIN_5,GPIO_BOTH_EDGES);
@@ -339,13 +339,13 @@ void Init_GPIO(void)
     // Enable GPIOD interrupt (position)
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
         while (! SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOD));
-    GPIOPinTypeGPIOInput(GPIO_PORTD_BASE, GPIO_PIN_6);
+    //GPIOPinTypeGPIOInput(GPIO_PORTD_BASE, GPIO_PIN_6);
     GPIOIntDisable(GPIO_PORTD_BASE, GPIO_PIN_6);
     GPIOIntClear(GPIO_PORTD_BASE, GPIO_INT_PIN_6);
-    //GPIOIntTypeSet(GPIO_PORTD_BASE, GPIO_PIN_6,GPIO_BOTH_EDGES);
+    GPIOIntTypeSet(GPIO_PORTD_BASE, GPIO_PIN_6,GPIO_BOTH_EDGES);
     GPIOIntTypeSet(GPIO_PORTD_BASE, GPIO_PIN_6,GPIO_RISING_EDGE);
     GPIOIntEnable(GPIO_PORTD_BASE, GPIO_PIN_6);
-
+*/
 
 
     ////////////////////////////////////////////////////////
@@ -518,27 +518,38 @@ void Init_WTIMER3(void){
     SysCtlPeripheralEnable(SYSCTL_PERIPH_WTIMER3);
     while (! SysCtlPeripheralReady(SYSCTL_PERIPH_WTIMER3));
 
+    GPIOPinTypeTimer(GPIO_PORTD_BASE, (GPIO_PIN_2 | GPIO_PIN_3));
+    GPIOPinConfigure(GPIO_PD2_WT3CCP0);
+    GPIOPinConfigure(GPIO_PD3_WT3CCP1);
+    TimerConfigure(WTIMER3_BASE, (TIMER_CFG_SPLIT_PAIR |  TIMER_CFG_A_CAP_TIME_UP));
+    TimerControlEvent(WTIMER3_BASE, TIMER_A, TIMER_EVENT_POS_EDGE);
 
-    TimerDisable(WTIMER3_BASE,TIMER_A);
-    //Stop timer
-    TimerClockSourceSet(WTIMER3_BASE, TIMER_CLOCK_SYSTEM);
-    TimerConfigure(WTIMER3_BASE, ( TIMER_CFG_A_CAP_TIME));  //Full-width periodic timer that counts down.
-    TimerLoadSet(WTIMER3_BASE, TIMER_A, 0xFFFFFFFF);      //Max value 9999999
-    TimerControlStall(WTIMER3_BASE, TIMER_A, 0);
-    TimerEnable(WTIMER3_BASE, TIMER_A);
-    TimerIntDisable(WTIMER3_BASE,(TIMER_CAPA_EVENT | TIMER_TIMA_DMA | TIMER_TIMA_TIMEOUT));
     TimerIntClear(WTIMER3_BASE,(TIMER_CAPA_EVENT | TIMER_TIMA_DMA | TIMER_TIMA_TIMEOUT));
+    TimerEnable(WTIMER3_BASE, TIMER_A);
+
+    //IntEnable(WTIMER3_BASE);
+    //TimerDisable(WTIMER3_BASE,TIMER_A);
+    //Stop timer
+
+
+
+    //TimerClockSourceSet(WTIMER3_BASE, TIMER_CLOCK_SYSTEM);
+    //TimerConfigure(WTIMER3_BASE, ( TIMER_CFG_A_CAP_TIME));  //Full-width periodic timer that counts down.
+    //TimerLoadSet(WTIMER3_BASE, TIMER_A, 0xFFFFFFFF);      //Max value 9999999
+    //TimerControlStall(WTIMER3_BASE, TIMER_A, 0);
+    //TimerEnable(WTIMER3_BASE, TIMER_A);
+    //TimerIntDisable(WTIMER3_BASE,(TIMER_CAPA_EVENT | TIMER_TIMA_DMA | TIMER_TIMA_TIMEOUT));
+
 
     // Enable T3CCP(0/1)
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
-            while (! SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOD));
-        GPIOPinTypeTimer(GPIO_PORTD_BASE, (GPIO_PIN_2 | GPIO_PIN_3));
-        GPIOPinConfigure(GPIO_PD2_WT3CCP0);
-        GPIOPinConfigure(GPIO_PD3_WT3CCP1);
+    //SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
+           // while (! SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOD));
+
+
 
         //TimerIntEnable(WTIMER3_BASE, TIMER_CAPA_EVENT);
         //TimerIntRegister(WTIMER3_BASE, TIMER_A, ISR_WTIMER3);
-    printf("done.\n");
+    //printf("done.\n");
 }
 
 
