@@ -145,6 +145,13 @@ void Init_CAN(void);
 void Init_QEI(void);
 void Init_WTIMER3(void);
 void Init_WTIMER2(void);
+<<<<<<< HEAD
+=======
+void Init_TIMER2(void);
+void Init_Timer1CCP(void);
+
+void inputInt(void);
+>>>>>>> master
 void Init_UART(void);
 
 void ISR_GPIOC(void);
@@ -172,9 +179,11 @@ void main(void)
     Init_QEI();
 
     // Initialize the Timer for period measurement.
-    Init_WTIMER3();
+    //Init_WTIMER3();
 
-    Init_WTIMER2();
+    //Init_WTIMER2();
+
+    Init_Timer1CCP();
 
     printf("Finished.\n");
 
@@ -365,8 +374,6 @@ void Init_CAN(void)
 
     CANMessageSet(CAN0_BASE, 1, &MsgObjectTx, MSG_OBJ_TYPE_TX);
 
-
-
     printf("done.\n");
     printf("System clock used for CAN bus timing: %d Hz\n", SysCtlClockGet());
     return;
@@ -381,7 +388,13 @@ void Init_QEI(void)
     uint32_t MeasureVelocityPeriod; // Specifies the number of clock ticks over which to measure the velocity.
 
     printf("Initializing QEI Module 0...");
+<<<<<<< HEAD
 
+=======
+    //MeasureVelocityPeriod = SysCtlClockGet();
+    //dblVelocityPeriod = (double)MeasureVelocityPeriod/SysCtlClockGet();
+    dblVelocityPeriod  = 0.001;
+>>>>>>> master
     MeasureVelocityPeriod = (uint32_t)(dblVelocityPeriod*SysCtlClockGet());
 
     // Enable the peripheral.
@@ -464,6 +477,26 @@ void Init_QEI(void)
 }
 
 
+<<<<<<< HEAD
+=======
+/*void Init_TIMER(void){
+    printf("Initializing Timer...");
+
+    // Enable timer3
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER3);
+    SysCtlDelay(3);
+    TimerDisable(TIMER3_BASE,TIMER_A);
+    //Stop timer
+    TimerClockSourceSet(TIMER3_BASE, TIMER_CLOCK_SYSTEM);
+    TimerConfigure(TIMER3_BASE, TIMER_CFG_PERIODIC);  //Full-width periodic timer that counts down.
+    TimerLoadSet(TIMER3_BASE, TIMER_A, 0xFFFFFFFF);       //Max value 9999999
+    TimerControlStall(TIMER3_BASE, TIMER_A,0);
+    TimerEnable(TIMER3_BASE, TIMER_A);
+
+    printf("done.\n");
+}
+
+>>>>>>> master
 void Init_WTIMER3(void){
     printf("Initializing Wide Timer3...");
 
@@ -540,11 +573,115 @@ void Init_WTIMER2(void){
 
     TimerEnable(WTIMER2_BASE, (TIMER_A));
 
+<<<<<<< HEAD
+=======
+        TimerIntEnable(WTIMER2_BASE, TIMER_CAPA_EVENT);
+>>>>>>> master
     printf("done.\n");
+}*/
+
+void Init_Timer1CCP(void){
+    // Enable and configure Timer0 peripheral.
+
+
+    // Enable and configure Timer0 peripheral.
+        SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+
+        // Initialize timer A and B to count up in edge time mode
+        TimerConfigure(TIMER0_BASE, (TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_CAP_TIME_UP | TIMER_CFG_B_CAP_TIME_UP));
+
+        // Timer a records pos edge time and Timer b records neg edge time
+        TimerControlEvent(TIMER0_BASE, TIMER_A, TIMER_EVENT_POS_EDGE);
+        TimerControlEvent(TIMER0_BASE, TIMER_B, TIMER_EVENT_NEG_EDGE);
+
+        //set the value that the timers count to (0x9C3F = 39999)
+        //CO2 sensor outputs 1khz pwm so with mcu at 40Mhz, timers should stay in sync with CO2 output
+        TimerLoadSet(TIMER0_BASE, TIMER_BOTH, 0x9C3F);
+
+        //Configure the pin that the timer reads from (PB6)
+        SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+        GPIOPinConfigure(GPIO_PB6_T0CCP0);
+        GPIOPinConfigure(GPIO_PB7_T0CCP1);
+        GPIOPinTypeTimer(GPIO_PORTB_BASE, GPIO_PIN_6);
+        GPIOPinTypeTimer(GPIO_PORTB_BASE, GPIO_PIN_7);
+
+
+        // Registers a interrupt function to be called when timer b hits a neg edge event
+        //IntRegister(INT_TIMER0A, duty_cycle);
+        // Makes sure the interrupt is cleared
+        TimerIntClear(TIMER0_BASE, TIMER_CAPA_EVENT);
+        // Enable the indicated timer interrupt source.
+        //TimerIntEnable(TIMER0_BASE, TIMER_CAPA_EVENT);
+        // The specified interrupt is enabled in the interrupt controller.
+        //IntEnable(INT_TIMER0A);
+
 }
 
+<<<<<<< HEAD
 void ISR_GPIOC(void){
     GPIOIntClear(GPIO_PORTC_BASE, GPIO_PIN_6); //clear interrupt flag
+=======
+/*void Init_TIMER2(void){
+    printf("Initializing Timer...");
+
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER3);
+    SysCtlDelay(3);
+    TimerDisable(TIMER3_BASE,TIMER_A);
+    //Stop timer
+    TimerClockSourceSet(TIMER3_BASE, TIMER_CLOCK_SYSTEM);
+    TimerConfigure(TIMER3_BASE, (TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_CAP_TIME));  //Full-width periodic timer that counts down.
+    TimerLoadSet(TIMER3_BASE, TIMER_A, 0xFFFFFFFF);       //Max value 9999999
+    TimerControlStall(TIMER3_BASE, TIMER_A,0);
+    TimerEnable(TIMER3_BASE, TIMER_A);
+    // Aktivierung des Ports B und Konfiguration des Timer-PIN
+        SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+    GPIOPinTypeTimer(GPIO_PORTB_BASE, (GPIO_PIN_2 | GPIO_PIN_3)); // Festlegung des Timer-CCP-Pins
+        GPIOPinConfigure(GPIO_PB2_T3CCP0);             // Configurierung des T1CCP0-Pins (PB4)
+        GPIOPinConfigure(GPIO_PB3_T3CCP1);             // Configurierung des T1CCP0-Pins (PB4)
+    printf("done.\n");
+}*/
+
+
+void inputInt(){
+  GPIOIntClear(GPIO_PORTA_BASE, GPIO_PIN_2); //clear interrupt flag
+  if ( GPIOPinRead(GPIO_PORTA_BASE, GPIO_PIN_2) == GPIO_PIN_2){
+    HWREG(TIMER3_BASE + TIMER_O_TAV) = 0; //Loads value 0 into the timer.
+    TimerEnable(TIMER3_BASE,TIMER_A); //start timer to recor
+
+  }
+  else{
+
+    TimerDisable(TIMER3_BASE,TIMER_A); //stop timer
+    pulse = TimerValueGet(TIMER3_BASE,TIMER_A); //record value
+
+
+  }
+
+}
+
+void ISR_QEI0(void){
+    QEIIntClear(QEI0_BASE,(QEI_INTTIMER));
+//    if(QEIIntStatus(QEI0_BASE,TRUE)==QEI_INTTIMER)
+//        {
+
+
+}
+
+void ISR_QEI1(void){
+    QEIIntClear(QEI1_BASE,(QEI_INTTIMER));
+//    if(QEIIntStatus(QEI0_BASE,TRUE)==QEI_INTTIMER)
+//        {
+
+//        }
+//    else
+//        System_printf("Other Interrupt\n");
+
+
+}
+
+/*void ISR_GPIOC(void){
+    GPIOIntClear(GPIO_PORTC_BASE, GPIO_PIN_5); //clear interrupt flag
+>>>>>>> master
 
     TmrAngNew = TimerValueGet(WTIMER3_BASE, TIMER_A);
 
@@ -552,10 +689,10 @@ void ISR_GPIOC(void){
 
     TmrAngOld = TmrAngNew;
 
-}
+}/*
 
 
-void ISR_GPIOD(void){
+/*void ISR_GPIOD(void){
     GPIOIntClear(GPIO_PORTD_BASE, GPIO_PIN_6); //clear interrupt flag
 
 
@@ -565,4 +702,21 @@ void ISR_GPIOD(void){
 
     TmrPosOld = TmrPosNew;
 
+<<<<<<< HEAD
+=======
+}*/
+
+void ISR_WTIMER2(void){
+ TimerIntClear(WTIMER2_BASE, TIMER_A);
+
+}
+void ISR_WTIMER3(void){
+ TimerIntClear(WTIMER3_BASE, TIMER_A);
+
+}
+
+void ISR_WTimer0A(void){
+    TimerIntClear(TIMER0_BASE, (TIMER_CAPA_EVENT | TIMER_TIMA_DMA | TIMER_TIMA_TIMEOUT));
+    TmrPosDelta = TimerValueGet(TIMER0_BASE, TIMER_A) - TimerValueGet(TIMER0_BASE, TIMER_B);
+>>>>>>> master
 }
